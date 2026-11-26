@@ -1,0 +1,22 @@
+<?php
+declare(strict_types=1);
+require __DIR__ . '/_scan_history_common.php';
+require_method('GET');
+bearer_token();
+$db = database();
+$user = authenticated_user($db);
+$id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+if (!$id || $id < 1) scan_fail(422, 'ID riwayat tidak valid.');
+$stmt = $db->prepare('SELECT image_filename, image_mime FROM scan_histories WHERE id = ? AND user_id = ? LIMIT 1');
+$stmt->execute([$id, $user['id']]);
+$row = $stmt->fetch();
+if (!$row) scan_fail(404, 'Foto tidak ditemukan.');
+$fileName = (string)$row['image_filename'];
+if (!preg_match('/^[a-f0-9]{40}\.(jpg|png|webp)$/', $fileName)) scan_fail(404, 'Foto tidak tersedia.');
+$filePath = scan_storage_dir() . DIRECTORY_SEPARATOR . $fileName;
+if (!is_file($filePath)) scan_fail(404, 'Foto tidak ditemukan di server.');
+header('Content-Type: ' . $row['image_mime']);
+header('Content-Length: ' . filesize($filePath));
+header('Cache-Control: private, max-age=120');
+readfile($filePath);
+exit;

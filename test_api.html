@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>FruitSenses - Diagnostik API</title><style>
+body{font:15px/1.5 system-ui,Segoe UI,Arial,sans-serif;max-width:860px;margin:40px auto;padding:0 18px;color:#193028}button{background:#176c35;color:#fff;border:0;padding:12px 16px;border-radius:9px;cursor:pointer;margin:5px 4px 5px 0}input{padding:12px 0}pre{padding:15px;white-space:pre-wrap;overflow-wrap:anywhere;background:#f3f5f4;border:1px solid #dae5de;border-radius:10px}small{color:#566}h1{font-size:25px}
+</style></head><body>
+<h1>Diagnostik Routing FruitSenses</h1>
+<p>Unggah kedua file ke folder yang sama dengan <code>classify.php</code>. Pilih gambar buah untuk menguji request POST. Hasil mencantumkan status, tipe respons, URL akhir, dan cuplikan respons (maksimal 500 karakter).</p>
+<input id="image" type="file" accept="image/jpeg,image/png,image/webp"><div>
+<button data-method="GET" data-url="route_probe.php">Tes GET PHP</button>
+<button data-method="POST" data-url="route_probe.php" data-image="true">Tes POST PHP</button>
+<button data-method="GET" data-url="classify.php">Tes GET Klasifikasi</button>
+<button data-method="POST" data-url="classify.php" data-image="true">Tes POST Klasifikasi</button>
+</div>
+<small>PERHATIAN: hapus file diagnostik setelah pengujian. Hindari mengirim kredensial/token pada diagnostik ini.</small><pre id="out">Pilih tombol tes di atas.</pre>
+<script>
+const out = document.getElementById('out');
+for (const btn of document.querySelectorAll('button[data-url]')) {
+  btn.addEventListener('click', async () => {
+    const file = document.getElementById('image').files[0];
+    if (btn.dataset.image && !file) {out.textContent = 'Pilih gambar terlebih dahulu.'; return;}
+    const method = btn.dataset.method;
+    const data = method === 'POST' ? new FormData() : undefined;
+    if (data) data.append('image', file);
+    btn.disabled = true;
+    out.textContent = 'Menghubungi server...';
+    try {
+      const response = await fetch('./' + btn.dataset.url + '?probe=' + Date.now(), {
+        method, body: data, cache: 'no-store', headers: {'Accept': 'application/json'}
+      });
+      const raw = await response.text();
+      let json = null;
+      try { json = JSON.parse(raw); } catch (_) {}
+      out.textContent = JSON.stringify({
+        request: method + ' ' + btn.dataset.url,
+        status: response.status,
+        redirected: response.redirected,
+        final_url: response.url,
+        content_type: response.headers.get('content-type'),
+        php_probe_header: response.headers.get('x-fruitsense-php-probe'),
+        result: json === null ? 'HTML atau non-JSON' : 'JSON valid',
+        body_start: raw.substring(0, 500)
+      }, null, 2);
+    } catch (err) {out.textContent = String(err);}
+    finally {btn.disabled = false;}
+  });
+}
+</script></body></html>
